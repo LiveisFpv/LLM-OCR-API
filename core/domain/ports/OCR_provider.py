@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-from domain.schemas.image_data import ImageData
-from domain.schemas.ocr_data import OCRData, OCRPage
+from core.domain.schemas.image_data import ImageData
+from core.domain.schemas.ocr_data import OCRData, OCRPage
 
 if TYPE_CHECKING:  # pragma: no cover
     import numpy as np

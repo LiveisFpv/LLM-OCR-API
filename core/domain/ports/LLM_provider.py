@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from domain.schemas.result_data import Result
+from core.domain.schemas.result_data import Result
 
 
 class LLM_provider(ABC):

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from domain.schemas.result_data import Result, ErrorEntry
+from core.domain.schemas.result_data import Result, ErrorEntry
 
 
 class Validator_provider(ABC):

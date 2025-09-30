@@ -1,1 +1,9 @@
 fastapi
+numpy
+opencv-python-headless
+pymupdf
+Pillow
+requests
+rapidocr
+paddlepaddle
+python-dotenv

@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-from domain.schemas.image_data import ImageData
-from domain.schemas.input_data import InputData
-from domain.schemas.layout import LayoutsData
+from core.domain.schemas.image_data import ImageData
+from core.domain.schemas.input_data import InputData
+from core.domain.schemas.layout import LayoutsData
 
 if TYPE_CHECKING:  # pragma: no cover
     import numpy as np

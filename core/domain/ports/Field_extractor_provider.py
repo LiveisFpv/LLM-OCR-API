@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
-from domain.schemas.layout import LayoutsData
-from domain.schemas.result_data import Result
+from core.domain.schemas.layout import LayoutsData
+from core.domain.schemas.result_data import Result
 
 
 class Field_extractor_provider(ABC):

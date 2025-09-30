@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 
-from domain.schemas.ocr_data import OCRData
-from domain.schemas.doc_data import DocData
-from domain.schemas.layout import LayoutsData
+from core.domain.schemas.ocr_data import OCRData
+from core.domain.schemas.doc_data import DocData
+from core.domain.schemas.layout import LayoutsData
 
 
 class Layout_analyzer(ABC):
