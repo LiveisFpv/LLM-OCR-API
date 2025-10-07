@@ -88,24 +88,30 @@ class LayoutService(Layout_analyzer):
 
         Returns (type, label, value):
         - meta_kv for "key: value"
-        - hazard_item for indices like 8.x/9.x
+        - meta_kv also for "key - value" and dash variants (–, —)
+        - hazard_item for indices like 8.x/9.x (and any N.x generally)
         - heading for likely uppercase headings
         - text otherwise
         """
         t = text.strip()
         if not t:
             return "text", None, t
-        if ":" in t:
-            key, val = t.split(":", 1)
-            key = key.strip()
-            val = val.strip()
-            if key and val:
-                return "meta_kv", key, val
+        # meta key-value by common separators (colon or dashes)
         import re
-        m = re.match(r"^\s*([89]\.\d+)\s*(.*)$", t)
+        # Allow colon or various dash characters as separators
+        m_kv = re.match(r"^\s*(.+?)\s*[:\-–—]\s*(.+?)\s*$", t)
+        if m_kv:
+            key = m_kv.group(1).strip()
+            val = m_kv.group(2).strip()
+            # Avoid treating hazard headings without values as kv
+            if key and val and not re.match(r"^\d+\.\d+\.?$", key):
+                return "meta_kv", key, val
+        # hazard items like 8.1, 9.4, etc. (allow trailing dot after index)
+        m = re.match(r"^\s*(\d+\.\d+)\.?(.*)$", t)
         if m:
             return "hazard_item", m.group(1), m.group(2).strip()
         letters = [ch for ch in t if ch.isalpha()]
         if letters and sum(ch.isupper() for ch in letters) / len(letters) >= 0.6 and len(t) >= 10:
             return "heading", None, t
         return "text", None, t
+
