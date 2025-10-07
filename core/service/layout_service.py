@@ -98,8 +98,8 @@ class LayoutService(Layout_analyzer):
             return "text", None, t
         # meta key-value by common separators (colon or dashes)
         import re
-        # Allow colon or various dash characters as separators
-        m_kv = re.match(r"^\s*(.+?)\s*[:\-–—]\s*(.+?)\s*$", t)
+        # Only colon as a separator to avoid breaking addresses with dashes
+        m_kv = re.match(r"^\s*(.+?)\s*:\s*(.+?)\s*$", t)
         if m_kv:
             key = m_kv.group(1).strip()
             val = m_kv.group(2).strip()

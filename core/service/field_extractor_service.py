@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import os
@@ -32,6 +32,7 @@ class FieldExtractorService(Field_extractor_provider):
     EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
     PHONE_RE = re.compile(r"(?<!\d)(?:\+7|8)(?:[()\s-]*\d){8,12}(?!\d)")
     OGRN_RE = re.compile(r"\b\d{13}\b")
+    OKVED_RE = re.compile(r"\b\d{2}\.\d{2}(?:\.\d{1,2})?\b")
 
     def extract(self, layout: LayoutsData) -> Result:
         logger = get_logger("extract")
@@ -144,12 +145,12 @@ class FieldExtractorService(Field_extractor_provider):
                 # Next line may contain official name in quotes
                 next_line = lines[i + 1] if i + 1 < len(lines) else None
                 if next_line and (next_line.strip().startswith('"') or '«' in next_line):
-                    name = self._normalize_company_name(next_line)
+                    name = self._norm_name(next_line)
                 else:
-                    name = self._normalize_company_name(line)
+                    name = self._norm_name(line)
                 break
             if line.strip().startswith('"') or '«' in line:
-                name = self._normalize_company_name(line)
+                name = self._norm_name(line)
                 break
 
         # Address: take address-like lines, stop before heading/OGRN label
@@ -173,12 +174,29 @@ class FieldExtractorService(Field_extractor_provider):
                 address_parts.append(line.strip(" ;,.") )
         address = ", ".join(self._dedupe_preserve(address_parts)) or None
 
+        # Fallback: reconstruct full name from legal form + quoted line
+        if not name:
+            q_idx = None
+            q_line = None
+            for i, ln in enumerate(lines):
+                s = ln.strip()
+                if s.startswith('"') or ("«" in s and "»" in s):
+                    q_idx = i
+                    q_line = s
+                    break
+            if q_line is not None:
+                legal_form = lines[q_idx - 1].strip(" .,") if q_idx and q_idx > 0 else None
+                if legal_form:
+                    name = self._norm_name(f"{legal_form} {q_line}")
+                else:
+                    name = self._norm_name(q_line)
+
         return OrganizationInfo(
             name=name,
             address=address,
             email=email,
             phone=phone,
-            okved=None,
+            okved=self._first_match(self.OKVED_RE, text_block),
             ogrn=ogrn,
         )
 
@@ -199,7 +217,7 @@ class FieldExtractorService(Field_extractor_provider):
         name = None
         m = re.match(r"^\s*направляется\s+(.+?)\s*[;,:]", first_line, re.I)
         if m:
-            name = self._normalize_company_name(m.group(1))
+            name = self._norm_name(m.group(1))
 
         # Address: everything after ';' in the first line + follow-up lines without emails/phones/ogrn
         address_parts: List[str] = []
@@ -289,6 +307,10 @@ class FieldExtractorService(Field_extractor_provider):
                 # Skip helper comments like "(номер пункта...)"
                 if stripped.startswith("(") and stripped.endswith(")"):
                     continue
+                if re.search(r"\b[мm]\.п\.?\b|ф\.и\.о|подпись|уполномоченного", stripped, re.I):
+                    if current_key is not None and current_lines:
+                        sections[current_key] = " ".join(current_lines).strip()
+                    break
                 current_lines.append(stripped)
         if current_key is not None and current_lines:
             sections[current_key] = " ".join(current_lines).strip()
@@ -315,8 +337,19 @@ class FieldExtractorService(Field_extractor_provider):
         return candidates[0]
 
     def _clean_phone(self, phone: str) -> str:
+        # Strip trailing extensions in parentheses like "(102,103)"
+        phone = re.sub(r"\s*\([^)]*\)\s*$", "", phone)
         phone = re.sub(r"[\s]+", " ", phone)
+        # Trim trailing punctuation
+        phone = phone.strip(" .,;:")
         return phone.strip()
+
+    def _norm_name(self, name: str) -> str:
+        name = name.strip()
+        name = re.sub(r"\b[OО]0[OО]\b", "ООО", name, flags=re.I)
+        name = re.sub(r"\bОбшество\b", "Общество", name, flags=re.I)
+        name = re.sub(r"\s+", " ", name)
+        return name
 
     def _normalize_company_name(self, name: str) -> str:
         name = name.strip(' \"«»')
@@ -362,4 +395,6 @@ class FieldExtractorService(Field_extractor_provider):
                 json.dump(rd.model_dump(), fh, ensure_ascii=False, indent=2)
         except Exception:
             pass
+
+
 
