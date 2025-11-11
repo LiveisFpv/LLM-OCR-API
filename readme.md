@@ -20,6 +20,22 @@ pip install -r requirements.txt
 python main.py
 ```
 
+## HTTP API (Swagger)
+- Запуск сервера через env (загружает .env автоматически):
+```bash
+# в .env: SERVE=true, DOMAIN=0.0.0.0, PORT=8080
+python main.py
+```
+- Альтернатива через uvicorn:
+```bash
+uvicorn core.transport.http.server:app --host 0.0.0.0 --port 8080
+```
+- Swagger UI: http://localhost:8080/docs (вкл/выкл через `SWAGGER_ENABLED` в `.env`).
+- Методы:
+  - `POST /api/recognize` (multipart `file` или query `url`), опции: `text_first`, `max_pages`.
+  - `GET /api/settings` — посмотреть активные настройки окружения.
+  - `GET /health` — проверка живости.
+
 ## Как работает пайплайн
 1. Вход: файл (или URL), базовые опции.
 2. Препроцессинг:

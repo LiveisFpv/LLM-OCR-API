@@ -203,15 +203,17 @@ class DeepSeekOCRProvider(OCR_provider):
 
     def _extract_page(self, image: "np.ndarray", page_number: int) -> OCRPage:
         h, w = image.shape[:2]
-        text = ""
 
         if self.backend == "hf":
-            # Use eval-mode runner to get text back from DeepSeek-OCR
-            text = self._run_hf_eval(image)
+            raw = self._run_hf_eval(image)
         else:
-            text = self._run_vllm(image)
+            raw = self._run_vllm(image)
 
-        lines = _mk_lines_from_text(text, w, h)
+        # Try to parse DeepSeek <|ref|>...<|det|> tags into lines with bboxes
+        lines = self._parse_ref_det_lines(raw, w, h)
+        if not lines:
+            # Fallback: keep only human-readable text
+            lines = _mk_lines_from_text(self._clean_generated_text(raw), w, h)
         return OCRPage(num=page_number, width=w, height=h, rotation=0, lines=lines)
 
     # ---------- Backend runners ----------
@@ -269,7 +271,8 @@ class DeepSeekOCRProvider(OCR_provider):
             else:
                 text = str(res) if res is not None else ""
 
-            return self._clean_generated_text(text)
+            # Return raw text with DeepSeek tags for downstream parsing
+            return text
 
         finally:
             if tmp_img_path and os.path.exists(tmp_img_path):
@@ -338,6 +341,73 @@ class DeepSeekOCRProvider(OCR_provider):
         return ""
 
     # ---------- Helpers ----------
+    @staticmethod
+    def _parse_ref_det_lines(raw: str, w: int, h: int) -> list[OCRLine]:
+        """Parse DeepSeek-OCR tagged output into OCRLine with pixel bboxes.
+
+        Expected blocks like:
+          <|ref|>text<|/ref|><|det|>[[x1,y1,x2,y2], ...]<|/det|>\n
+          Followed by the recognized text on subsequent line(s) until the next <|ref|> or EOF.
+        Coords are in 0..999 space and must be scaled to image pixels.
+        """
+        import re, ast
+        if not raw:
+            return []
+        tag_re = re.compile(r"<\|ref\|>(.*?)<\|/ref\|><\|det\|>(.*?)<\|/det\|>", re.DOTALL)
+        matches = list(tag_re.finditer(raw))
+        if not matches:
+            return []
+        lines: list[OCRLine] = []
+        end_of_text = len(raw)
+        for i, m in enumerate(matches):
+            label = (m.group(1) or "").strip().lower()
+            # Skip non-textual labels
+            if label in {"image"}:
+                continue
+            # Grab following text chunk until next tag
+            next_start = matches[i + 1].start() if i + 1 < len(matches) else end_of_text
+            chunk = raw[m.end():next_start]
+            text_line = None
+            for ln in (chunk or "").splitlines():
+                s = (ln or "").strip()
+                if not s:
+                    continue
+                # Filter away tag echoes or control lines
+                if s.startswith("<|") and "|>" in s:
+                    continue
+                if s.startswith("[[") and s.endswith("]]"):
+                    continue
+                text_line = s
+                break
+            if not text_line:
+                continue
+
+            # Clean label-driven prefixes (e.g., markdown headings)
+            if text_line.startswith("## "):
+                text_line = text_line[3:].strip()
+
+            # Parse list of boxes
+            coords_str = (m.group(2) or "").strip()
+            try:
+                boxes = ast.literal_eval(coords_str)
+            except Exception:
+                boxes = None
+            if not isinstance(boxes, (list, tuple)) or not boxes:
+                continue
+            for box in boxes:
+                try:
+                    x1, y1, x2, y2 = box
+                    # Scale from 0..999 to pixels
+                    px1 = max(0, min(int(round(x1 / 999.0 * w)), w))
+                    py1 = max(0, min(int(round(y1 / 999.0 * h)), h))
+                    px2 = max(0, min(int(round(x2 / 999.0 * w)), w))
+                    py2 = max(0, min(int(round(y2 / 999.0 * h)), h))
+                    if px2 <= px1 or py2 <= py1:
+                        continue
+                    lines.append(OCRLine(text=text_line, bbox=[px1, py1, px2, py2], conf=0.99))
+                except Exception:
+                    continue
+        return lines
     @staticmethod
     def _clean_generated_text(text: str) -> str:
         if not text:
