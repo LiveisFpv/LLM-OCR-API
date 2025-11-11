@@ -25,8 +25,8 @@ def build_input_from_file(path: Path, *, text_first: bool = False) -> InputData:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Run OCR pipeline on a local file")
-    ap.add_argument("file", type=str, help="Path to PDF or image")
-    ap.add_argument("--text-first", action="store_true", help="Prefer text layer for PDFs")
+    ap.add_argument("--file", default="photo.jpg", type=str, help="Path to PDF or image")
+    ap.add_argument("--text-first", default="",action="store_true", help="Prefer text layer for PDFs")
     args = ap.parse_args()
 
     input_data = build_input_from_file(Path(args.file), text_first=args.text_first)

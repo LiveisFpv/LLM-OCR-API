@@ -46,11 +46,10 @@ class PipelineService(Pipeline_interface):
             self.logger.info("ocr: pages=%d, lines=%d", len(ocr.pages), total_lines)
             os.makedirs("tmp", exist_ok=True)
             for idx, page in enumerate(ocr.pages, start=1):
-                dump_path = os.path.join("tmp", f"ocr_lines_{idx}.txt")
+                dump_path = os.path.join("tmp", f"ocr_lines_{idx}.json")
                 try:
                     with open(dump_path, "w", encoding="utf-8") as dump:
-                        for line in page.lines:
-                            dump.write(f"{line.conf:.2f}\t{line.text}\t{line.bbox}\n")
+                        dump.write(page.model_dump_json())
                     self.logger.info("ocr lines dump saved: %s", dump_path)
                 except Exception as exc:
                     self.logger.warning("failed to write %s: %s", dump_path, exc)
@@ -67,7 +66,7 @@ class PipelineService(Pipeline_interface):
             if sample:
                 self.logger.info("ocr sample: %s", " | ".join(sample))
             else:
-                self.logger.warning("ocr produced 0 text lines; inspect tmp/ocr_lines_*.txt and tmp/preprocessed_*.png")
+                self.logger.warning("ocr produced 0 text lines; inspect tmp/ocr_lines_*.json and tmp/preprocessed_*.png")
             # Save overlays for debugging
             try:
                 os.makedirs("tmp", exist_ok=True)

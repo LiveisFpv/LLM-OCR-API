@@ -7,3 +7,14 @@ requests
 rapidocr
 paddlepaddle
 python-dotenv
+vllm --pre --extra-index-url https://wheels.vllm.ai/nightly
+torch
+transformers==4.45.2
+accelerate==0.34.2
+safetensors==0.4.4
+tokenizers
+einops 
+addict 
+easydict
+matplotlib
+torchvision

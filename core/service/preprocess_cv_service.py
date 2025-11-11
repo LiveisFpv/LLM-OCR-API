@@ -44,11 +44,11 @@ class PreprocessCVService(Preprocess_cv):
             # Color-friendly pipeline for detection-first OCR engines (Paddle/Rapid)
             color = self._ensure_color(mat)
             # 1) выправляем перспективу (если найдём 4 угла)
-            color = self._correct_perspective_image(color)
+            # color = self._correct_perspective_image(color)
             # 2) устраняем перекос
-            rotated, angle = self._deskew_color(color)
+            # rotated, angle = self._deskew_color(color)
             # 3) апскейлим до удобного размера
-            scaled = self._resize_longest(rotated, target_long=2400)
+            scaled = self._resize_longest(color, target_long=2400)
             # 4) выравниваем освещение (фон) + CLAHE
             lit = self._illumination_correct(scaled)
             enhanced = self._enhance_color(lit)  # твой CLAHE-проход по Y
@@ -57,7 +57,7 @@ class PreprocessCVService(Preprocess_cv):
             # 6) аккуратное обрезание чёрных рамок
             # final = self._autocrop_borders(final)
 
-            logger.info("page[%d]: deskew angle=%.2f", index, angle)
+            # logger.info("page[%d]: deskew angle=%.2f", index, angle)
 
             gray_dbg = cv2.cvtColor(final, cv2.COLOR_BGR2GRAY)
             sharp = cv2.Laplacian(gray_dbg, cv2.CV_64F).var()
