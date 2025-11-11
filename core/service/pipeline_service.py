@@ -13,6 +13,7 @@ from .preprocess_service import PreprocessService
 from .ocr_service import OCRService
 from .layout_service import LayoutService
 from .field_extractor_service import FieldExtractorService
+from .llm_service import LLMService
 
 
 class PipelineService(Pipeline_interface):
@@ -22,6 +23,16 @@ class PipelineService(Pipeline_interface):
         self.ocr = OCRService()
         self.layout = LayoutService()
         self.extractor = FieldExtractorService()
+        # Optional LLM extraction instead of rule-based parser
+        self._use_llm_extract = os.getenv("LLM_EXTRACT", "0").lower() in ("1", "true", "yes")
+        self.llm: Optional[LLMService] = None
+        if self._use_llm_extract:
+            try:
+                self.llm = LLMService()
+                self.logger.info("llm: extraction enabled via %s", os.getenv("OLLAMA_MODEL", "gpt-oss:120b"))
+            except Exception as e:
+                self.logger.warning("llm: disabled due to init error: %s", e)
+                self._use_llm_extract = False
 
     def run(self, input_data: InputData) -> ResultData:
         t0 = time.perf_counter()
@@ -104,7 +115,10 @@ class PipelineService(Pipeline_interface):
 
         # 4) Field extraction
         t3 = time.perf_counter()
-        result = self.extractor.extract(layout_ir)  # type: ignore[arg-type]
+        if self._use_llm_extract and self.llm is not None:
+            result = self.llm.extract(layout_ir)  # type: ignore[arg-type]
+        else:
+            result = self.extractor.extract(layout_ir)  # type: ignore[arg-type]
         meta.timings_ms["extract"] = int((time.perf_counter() - t3) * 1000)
         self.logger.info(
             "extracted: org=%s; patient=%s; direction=%s",
@@ -112,6 +126,18 @@ class PipelineService(Pipeline_interface):
             result.patient.full_name,
             result.direction_type,
         )
+
+        # Dump result.json when LLM used (FieldExtractor already dumps internally)
+        if self._use_llm_extract:
+            try:
+                os.makedirs("tmp", exist_ok=True)
+                rd = ResultData(meta=MetaInfo(timings_ms=meta.timings_ms), layout_ir=layout_ir, result=result)
+                with open("tmp/result.json", "w", encoding="utf-8") as fh:
+                    import json as _json
+                    _json.dump(rd.model_dump(), fh, ensure_ascii=False, indent=2)
+                self.logger.info("saved tmp/result.json")
+            except Exception:
+                pass
 
         total_ms = int((time.perf_counter() - t0) * 1000)
         self.logger.info("done: total=%d ms", total_ms)

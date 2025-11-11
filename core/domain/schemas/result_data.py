@@ -51,6 +51,7 @@ class HazardsInfo(BaseModel):
     biological: Optional[str] = None
     aerosols_dust: Optional[str] = None
     physical: Optional[str] = None
+    heavy_labor: Optional[str] = None
     labour_process: Optional[str] = None
     performed_works: Optional[str] = None
 
@@ -78,4 +79,3 @@ class ResultData(BaseModel):
     meta: MetaInfo = Field(default_factory=MetaInfo)
     layout_ir: Optional[LayoutsData] = None
     result: Result = Field(default_factory=Result)
-

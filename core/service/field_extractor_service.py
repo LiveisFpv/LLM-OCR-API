@@ -280,6 +280,7 @@ class FieldExtractorService(Field_extractor_provider):
             biological=value("9.2"),
             aerosols_dust=value("9.3"),
             physical=value("9.4"),
+            heavy_labor=value("9.5"),
             labour_process=value("9.5"),
             performed_works=value("9.6"),
         )

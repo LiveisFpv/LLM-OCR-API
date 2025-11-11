@@ -19,3 +19,4 @@ addict
 easydict
 matplotlib
 torchvision
+ollama
